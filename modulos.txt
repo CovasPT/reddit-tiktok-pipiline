@@ -1,0 +1,33 @@
+=========================================================
+          ROTEIRO DE AUTOMAÇÃO - V2.0 DO PIPELINE
+=========================================================
+
+OBJETIVO 1: DOWNLOAD AUTOMÁTICO DE VÍDEOS DE FUNDO
+Atualmente: LocalBackgroundVideoProvider lê de uma pasta local.
+O que alterar:
+* Criar um novo ficheiro YoutubeVideoProvider.java na pasta adapter/video/.
+* Implementar a interface BackgroundVideoProvider.
+* Usar o ProcessBuilder do Java para executar o comando "yt-dlp" (ferramenta de terminal que saca vídeos).
+* Receber um array de links (ex: vídeos longos de Minecraft), escolher um aleatório, descarregar para uma pasta temporária e devolver o Path desse ficheiro descarregado.
+* No Main.java, trocar a injeção do LocalBackgroundVideoProvider pelo YoutubeVideoProvider.
+
+OBJETIVO 2: IMAGENS DOS COMENTÁRIOS REAIS
+Atualmente: HtmlFrameRenderer devolve caminhos falsos/simulados ("comment_1.png").
+O que alterar:
+* Adicionar a dependência do "Playwright for Java" no pom.xml.
+* No HtmlFrameRenderer.java, abrir um browser invisível (Headless) usando o Playwright.
+* Injetar o texto do comentário num template HTML simples e usar a função do Playwright para tirar uma screenshot e guardar o PNG.
+
+OBJETIVO 3: LEITURA REAL DA API DO REDDIT
+Atualmente: RedditStoryFetcher simula falha/sucesso sem processar o JSON.
+O que alterar:
+* Adicionar a dependência "Jackson" ou "Gson" no pom.xml.
+* No RedditStoryFetcher, pegar na string recebida pelo HttpClient e convertê-la para um objeto Java estruturado.
+* Extrair os campos essenciais para construir a lista de StoryContent autênticos.
+
+OBJETIVO 4: PUBLICAÇÃO AUTOMÁTICA (Opcional)
+Atualmente: O pipeline gera o vídeo e o utilizador publica à mão.
+O que alterar:
+* Criar uma nova porta (interface) em port/ chamada VideoPublisher.java (ex: publish(Path videoPath)).
+* Criar um adaptador TiktokPublisher.java usando a API oficial do TikTok.
+* Atualizar o PipelineOrchestrator para, se a fase do VideoCompiler for um Success, chamar o VideoPublisher para enviar o vídeo diretamente para a rede social.

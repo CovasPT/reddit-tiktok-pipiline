@@ -1,4 +1,4 @@
-package main.java.com.covas.model;
+package com.covas.model;
 
 import java.util.Objects;
 

@@ -1,5 +1,4 @@
-package main.java.com.covas.model;
-
+package com.covas.model;
 public record Resolution(int width, int height) {
     
     public static final Resolution TIKTOK_VERTICAL = new Resolution(1080, 1920);

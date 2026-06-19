@@ -1,4 +1,4 @@
-package model;
+package com.covas.model;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
