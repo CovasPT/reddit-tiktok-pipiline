@@ -42,8 +42,14 @@ public class YoutubeVideoProvider implements BackgroundVideoProvider {
             pb.redirectErrorStream(true); // Redireciona o output para conseguirmos ver se falhar
             
             System.out.println("A descarregar vídeo de fundo via yt-dlp... Isto pode demorar.");
-            int exitCode = pb.start().waitFor();
-            
+            int exitCode;
+            try {
+                exitCode = pb.start().waitFor();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new VideoProviderException("Download interrompido", e);
+            }
+
             if (exitCode != 0) {
                 throw new VideoProviderException("O yt-dlp falhou com código: " + exitCode + ". Tens o yt-dlp instalado no teu PC?");
             }
@@ -57,6 +63,8 @@ public class YoutubeVideoProvider implements BackgroundVideoProvider {
 
             return clip;
 
+        } catch (VideoProviderException e) {
+            throw e;
         } catch (Exception e) {
             throw new VideoProviderException("Erro ao descarregar vídeo do YouTube", e);
         }

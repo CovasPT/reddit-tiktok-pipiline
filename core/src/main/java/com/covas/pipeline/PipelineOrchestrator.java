@@ -9,6 +9,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 public final class PipelineOrchestrator {
@@ -37,7 +38,8 @@ public final class PipelineOrchestrator {
         
         try {
             List<StoryContent> stories = fetcher.fetchTopStories(subreddit, limit);
-            
+            Objects.requireNonNull(stories, "fetchTopStories() devolveu null");
+
             for (StoryContent story : stories) {
                 results.add(processStory(story, outputDir));
             }

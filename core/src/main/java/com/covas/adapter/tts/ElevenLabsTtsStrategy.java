@@ -4,37 +4,86 @@ import com.covas.model.AudioResult;
 import com.covas.model.TtsOptions;
 import com.covas.port.TtsStrategy;
 import com.covas.exception.TtsException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Map;
 
-public class ElevenLabsTtsStrategy implements TtsStrategy {
+public final class ElevenLabsTtsStrategy implements TtsStrategy {
+
+    private static final String API_BASE = "https://api.elevenlabs.io/v1/text-to-speech";
+    private final HttpClient http = HttpClient.newHttpClient();
+    private final ObjectMapper mapper = new ObjectMapper();
 
     @Override
     public AudioResult synthesize(String text, TtsOptions opts) {
-        // TODO: Substituir por chamada HTTP real à API do ElevenLabs
-        // Alterado de 429 para 200 para permitir que o pipeline avance com sucesso
-        int statusCode = 200; 
-
-        if (statusCode != 200) {
-            throw new TtsException("Falha na API do ElevenLabs (Limite atingido)", statusCode);
-        }
-
-        // Criamos um caminho para o ficheiro de áudio temporário
-        Path dummyAudio = Path.of("temp_narration.mp3");
-        
+        String apiKey = System.getenv("ELEVENLABS_API_KEY");
         try {
-            // Se o ficheiro não existir, criamos um ficheiro vazio apenas para o FFmpeg não crashar a dizer que o ficheiro falta
-            if (!Files.exists(dummyAudio)) {
-                Files.createFile(dummyAudio);
-            }
+            Path audioFile = (apiKey != null && !apiKey.isBlank())
+                    ? callApi(text, opts, apiKey)
+                    : generateSilence(estimateDuration(text));
+            return new AudioResult(audioFile, Duration.ofSeconds(estimateDuration(text)), providerId());
+        } catch (TtsException e) {
+            throw e;
         } catch (Exception e) {
-            throw new TtsException("Erro ao criar ficheiro de áudio temporário", 500);
+            throw new TtsException("Erro no TTS: " + e.getMessage(), 500);
+        }
+    }
+
+    private Path callApi(String text, TtsOptions opts, String apiKey) throws Exception {
+        String body = mapper.writeValueAsString(Map.of(
+                "text", text,
+                "model_id", opts.modelId(),
+                "voice_settings", Map.of(
+                        "stability", opts.stability(),
+                        "similarity_boost", opts.similarityBoost(),
+                        "style", opts.style()
+                )
+        ));
+
+        HttpRequest req = HttpRequest.newBuilder()
+                .uri(URI.create(API_BASE + "/" + opts.voiceId()))
+                .header("xi-api-key", apiKey)
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(body))
+                .build();
+
+        HttpResponse<byte[]> res = http.send(req, HttpResponse.BodyHandlers.ofByteArray());
+        if (res.statusCode() != 200) {
+            throw new TtsException("ElevenLabs devolveu " + res.statusCode(), res.statusCode());
         }
 
-        // Devolvemos o resultado simulando uma narração de 15 segundos
-        return new AudioResult(dummyAudio, Duration.ofSeconds(15), providerId());
+        Path audioFile = Files.createTempFile("narration_", ".mp3");
+        Files.write(audioFile, res.body());
+        return audioFile;
+    }
+
+    private Path generateSilence(long seconds) throws Exception {
+        Path audioFile = Files.createTempFile("narration_silence_", ".mp3");
+        int exitCode = new ProcessBuilder(
+                "ffmpeg", "-y",
+                "-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo",
+                "-t", String.valueOf(seconds),
+                "-acodec", "libmp3lame", "-q:a", "9",
+                audioFile.toString()
+        )
+        .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+        .redirectError(ProcessBuilder.Redirect.DISCARD)
+        .start().waitFor();
+
+        if (exitCode != 0) throw new TtsException("Falha ao gerar silêncio com FFmpeg", 500);
+        return audioFile;
+    }
+
+    private long estimateDuration(String text) {
+        long words = text.split("\\s+").length;
+        return Math.max(5, (words * 60) / 150);
     }
 
     @Override

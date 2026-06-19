@@ -13,6 +13,7 @@ public class TtsException extends PipelineException {
     }
 
     public boolean isRetryable() {
-        return httpStatusCode == 429 || httpStatusCode == 503;
+        return httpStatusCode == 429 || httpStatusCode == 503
+                || httpStatusCode == 504 || httpStatusCode == 408;
     }
 }

@@ -16,6 +16,10 @@ public final class RetryPolicy {
         return new RetryPolicy(3, Duration.ofSeconds(1));
     }
 
+    static RetryPolicy forTesting() {
+        return new RetryPolicy(3, Duration.ofMillis(10));
+    }
+
     public <T> T execute(Supplier<T> operation) {
         int attempt = 1;
         long currentDelayMs = initialDelay.toMillis();
@@ -25,6 +29,7 @@ public final class RetryPolicy {
                 return operation.get(); // Executa a operação que lhe foi passada
             } catch (Exception e) {
                 if (attempt >= maxAttempts) {
+                    if (e instanceof RuntimeException re) throw re;
                     throw new RuntimeException("Esgotadas as " + maxAttempts + " tentativas", e);
                 }
                 
